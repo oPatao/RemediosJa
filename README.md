@@ -50,3 +50,24 @@ Para executar este projeto em sua máquina, siga os passos abaixo estritamente p
    É fundamental que você esteja dentro da pasta raiz do aplicativo Expo (`RemediosJa`) antes de rodar qualquer comando.
    ```bash
    cd RemediosJa
+
+2. **Instale as dependencias**
+  apos ter certeza que esta no diretorio correto do expo, instale as dependencias com o seguinte comando
+  ```bash
+  npm install
+```
+3. **Executar o App**
+   Após a instalação terminar, inicie o servidor do Metro Bundler com o comando:
+```Bash
+  npm start
+```
+### Passo 4: Testar no Dispositivo*
+  **No Celular**: Baixe o app Expo Go na Play Store (Android) ou App Store (iOS) e escaneie o QR Code exibido no terminal.
+  **No Emulador**: Pressione a no terminal para abrir no Android Emulator ou i para o iOS Simulator.
+
+🛠️ Tecnologias Utilizadas
+    **React Native & Expo SDK 54**
+    **Expo SQLite:** Para banco de dados local.
+    **React Navigation:** Navegação em Stack e Tabs.
+    **Context API:** Gerenciamento de estado global (Auth e Carrinho).
+    **TypeScript:** Para tipagem estática e segurança do código.
