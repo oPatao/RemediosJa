@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, Modal, TouchableOpacity, ScrollView, TouchableWithoutFeedback } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 
@@ -6,14 +6,24 @@ interface FilterProps {
   visible: boolean;
   onClose: () => void;
   onApply: (category: string | null, maxPrice: number) => void;
+  currentCategory: string | null;
+  currentPrice: number;
 }
 
 const categories = ['Medicamentos', 'Saúde', 'Bebê', 'Beleza', 'Higiene', 'Equipamentos'];
 const prices = [20, 50, 100, 200];
 
-export default function FilterBottomSheet({ visible, onClose, onApply }: FilterProps) {
+export default function FilterBottomSheet({ visible, onClose, onApply, currentCategory, currentPrice }: FilterProps) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedPrice, setSelectedPrice] = useState<number>(0);
+
+  // Sincroniza o estado local com o filtro atual sempre que o modal abre
+  useEffect(() => {
+    if (visible) {
+      setSelectedCategory(currentCategory);
+      setSelectedPrice(currentPrice);
+    }
+  }, [visible, currentCategory, currentPrice]);
 
   const handleApply = () => {
     onApply(selectedCategory, selectedPrice);
@@ -132,7 +142,7 @@ const styles = StyleSheet.create({
     borderColor: '#f0f0f0',
   },
   chipSelected: {
-    backgroundColor: '#e6f7eb', // Verde claro do iFood
+    backgroundColor: '#e6f7eb', 
     borderColor: '#28a745',
   },
   chipText: {

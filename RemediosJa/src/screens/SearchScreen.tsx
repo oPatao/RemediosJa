@@ -85,7 +85,11 @@ export default function SearchScreen() {
           />
         </View>
         <TouchableOpacity style={styles.filterButton} onPress={() => setModalVisible(true)}>
-            <Feather name="sliders" size={24} color={filterCategory || filterMaxPrice > 0 ? "#28a745" : "black"} />
+            <Feather 
+              name="sliders" 
+              size={24} 
+              color={(filterCategory || filterMaxPrice > 0) ? "#28a745" : "black"} 
+            />
         </TouchableOpacity>
       </View>
 
@@ -112,6 +116,8 @@ export default function SearchScreen() {
         visible={modalVisible} 
         onClose={() => setModalVisible(false)}
         onApply={handleApplyFilters}
+        currentCategory={filterCategory}
+        currentPrice={filterMaxPrice}
       />
     </SafeAreaView>
   );

@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, TouchableOpacity, Image, ScrollView } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';  
+import LoginScreen from './LoginScreen'; // <--- IMPORTAÇÃO ADICIONADA
 
 const InfoBox = ({ value, label }: { value: string | number, label: string }) => (
   <View style={styles.infoBox}>
@@ -11,7 +12,6 @@ const InfoBox = ({ value, label }: { value: string | number, label: string }) =>
   </View>
 );
 
-// ... (Mantenha o componente ProfileOption igual ao anterior) ...
 const ProfileOption = ({ icon, name, subtitle, onPress }: any) => (
     <TouchableOpacity style={styles.optionRow} onPress={onPress}>
       <View style={styles.optionIcon}>{icon}</View>
@@ -24,10 +24,18 @@ const ProfileOption = ({ icon, name, subtitle, onPress }: any) => (
 );
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuth();
+  const { user, loading, logout } = useAuth(); // Adicionando 'loading'
 
-  if (!user) return null;
+  if (loading) {
+     return <View style={styles.loadingContainer}><Text>Carregando perfil...</Text></View>;
+  }
+  
+  // SE O USUÁRIO NÃO ESTIVER LOGADO, MOSTRA A TELA DE LOGIN
+  if (!user) {
+      return <LoginScreen />;
+  }
 
+  // SE O USUÁRIO ESTIVER LOGADO, MOSTRA O PERFIL COMPLETO
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView>
@@ -50,18 +58,19 @@ export default function ProfileScreen() {
           <InfoBox value={user.favoritos} label="Favoritos" />
         </View>
         
-        {/* ... (Mantenha o restante do layout igual, chamando ProfileOption) ... */}
         <View style={styles.optionsContainer}>
            <ProfileOption 
                 icon={<Feather name="map-pin" size={20} color="black" />} 
                 name="Endereços" 
                 subtitle="Gerenciar endereços de entrega"
+                onPress={() => { /* Implementar navegação para Endereços */ }}
             />
              <View style={styles.divider} />
              <ProfileOption 
                  icon={<Feather name="credit-card" size={20} color="black" />} 
                  name="Cartões e pagamento" 
                  subtitle="Métodos de pagamento salvos"
+                 onPress={() => { /* Implementar navegação para Cartões */ }}
              />
         </View>
 
@@ -74,10 +83,15 @@ export default function ProfileScreen() {
   );
 }
 
-// ... (Mantenha os estilos iguais) ...
 const styles = StyleSheet.create({
     container: {
       flex: 1,
+      backgroundColor: '#f5f5f5',
+    },
+    loadingContainer: {
+      flex: 1, 
+      justifyContent: 'center', 
+      alignItems: 'center',
       backgroundColor: '#f5f5f5',
     },
     profileHeader: {

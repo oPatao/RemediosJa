@@ -4,6 +4,9 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { AntDesign, Feather } from '@expo/vector-icons';
 
+// --- IMPORTANTE: Importe o AuthProvider ---
+import { AuthProvider } from './context/AuthContext';
+
 // Importe suas telas
 import HomeScreen from './src/screens/HomeScreen';
 import CartScreen from './src/screens/CartScreen';
@@ -61,29 +64,32 @@ function MainTabNavigator() {
 // O Navegador principal da aplicação
 export default function App() {
   return (
-    <NavigationContainer>
-      <Stack.Navigator>
-        <Stack.Screen
-          name="Main"
-          component={MainTabNavigator}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="Cart"
-          component={CartScreen}
-          options={{ title: 'Meu Carrinho' }}
-        />
-        <Stack.Screen
-          name="Checkout"
-          component={CheckoutScreen}
-          options={{ title: 'Finalizar pedido' }}
-        />
-        <Stack.Screen
-          name="OrderConfirmed"
-          component={OrderConfirmedScreen}
-          options={{ headerShown: false }}
-        />
-      </Stack.Navigator>
-    </NavigationContainer>
+    // ENVOLVA O APP COM O AUTHPROVIDER PARA INICIAR O BANCO
+    <AuthProvider>
+      <NavigationContainer>
+        <Stack.Navigator>
+          <Stack.Screen
+            name="Main"
+            component={MainTabNavigator}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="Cart"
+            component={CartScreen}
+            options={{ title: 'Meu Carrinho' }}
+          />
+          <Stack.Screen
+            name="Checkout"
+            component={CheckoutScreen}
+            options={{ title: 'Finalizar pedido' }}
+          />
+          <Stack.Screen
+            name="OrderConfirmed"
+            component={OrderConfirmedScreen}
+            options={{ headerShown: false }}
+          />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </AuthProvider>
   );
 }
