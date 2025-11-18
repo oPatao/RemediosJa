@@ -1,61 +1,71 @@
-import React from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, AntDesign, FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useAuth } from '../../context/AuthContext';
+import { getOrdersByUserId, Order, OrderStatus } from '../../service/database';
+import { useCart } from '../../context/CartContext';
 
 type RootStackParamList = {
   Cart: undefined;
+  Login: undefined;
 };
 type OrdersScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Cart'>;
 
-const getStatusStyle = (status: string) => {
+const getStatusStyle = (status: OrderStatus) => {
   switch (status) {
-    case 'Entregue':
+    case 'entregue':
       return { container: '#e6f7eb', text: '#28a745', icon: <AntDesign name="check-circle" size={24} color="#28a745" /> };
-    case 'A caminho':
+    case 'enviado':
       return { container: '#e3f2fd', text: '#007bff', icon: <FontAwesome name="truck" size={24} color="#007bff" /> };
-    case 'Preparando':
+    case 'preparando':
       return { container: '#fff8e1', text: '#ffc107', icon: <MaterialCommunityIcons name="clock-time-three-outline" size={24} color="#ffc107" /> };
     default:
-      return { container: '#f0f0f0', text: 'gray' };
+      return { container: '#f0f0f0', text: 'gray', icon: <Feather name="x-circle" size={24} color="gray" /> };
   }
 };
 
-const OrderCard = ({ id, pharmacy, status, date, total, items }: any) => {
-  const style = getStatusStyle(status);
+const OrderCard = ({ order }: { order: Order }) => {
+  const style = getStatusStyle(order.status);
+  
+  const totalItems = order.items.reduce((acc, item) => acc + item.quantity, 0);
+  const dateFormatted = new Date(order.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  
+  const itemsSummary = order.items.map(item => item.name).join(', ');
+
   return (
     <View style={styles.orderCard}>
       <View style={styles.cardHeader}>
         <View style={styles.cardHeaderTitle}>
           {style.icon}
-          <Text style={styles.orderId}> Pedido #{id}</Text>
+          <Text style={styles.orderId}> Pedido #{order.id.slice(-6).toUpperCase()}</Text>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: style.container }]}>
-          <Text style={[styles.statusText, { color: style.text }]}>{status}</Text>
+          <Text style={[styles.statusText, { color: style.text }]}>{order.status.charAt(0).toUpperCase() + order.status.slice(1)}</Text>
         </View>
       </View>
-      <Text style={styles.pharmacyName}>{pharmacy}</Text>
+      <Text style={styles.pharmacyName}>Itens: {totalItems} de diferentes farmácias</Text>
       
       <View style={styles.detailRow}>
         <Text style={styles.detailLabel}>Data do pedido</Text>
-        <Text style={styles.detailValue}>{date}</Text>
+        <Text style={styles.detailValue}>{dateFormatted}</Text>
       </View>
       <View style={styles.detailRow}>
         <Text style={styles.detailLabel}>Total</Text>
-        <Text style={styles.detailValue}>R$ {total}</Text>
+        <Text style={styles.detailValue}>R$ {order.total.toFixed(2).replace('.', ',')}</Text>
       </View>
       <View style={styles.detailRow}>
         <Text style={styles.detailLabel}>Itens do pedido:</Text>
-        <Text style={styles.detailValue}>{items}</Text>
+        <Text style={styles.detailValue} numberOfLines={1}>{itemsSummary}</Text>
       </View>
 
       <View style={styles.buttonRow}>
         <TouchableOpacity style={styles.buttonOutline}>
           <Text style={styles.buttonOutlineText}>Ver detalhes</Text>
         </TouchableOpacity>
-        {status === 'A caminho' ? (
+        {order.status === 'enviado' ? (
           <TouchableOpacity style={styles.buttonFilled}>
             <Text style={styles.buttonFilledText}>Rastrear pedido</Text>
           </TouchableOpacity>
@@ -71,10 +81,54 @@ const OrderCard = ({ id, pharmacy, status, date, total, items }: any) => {
 
 export default function OrdersScreen() {
   const navigation = useNavigation<OrdersScreenNavigationProp>();
+  const { cart } = useCart();
+  const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   
+  const { user } = useAuth();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadOrders = useCallback(async () => {
+    if (!user || !user.id) {
+        setOrders([]);
+        setLoading(false);
+        return;
+    }
+    
+    try {
+        setLoading(true);
+        const userOrders = await getOrdersByUserId(user.id.toString());
+        setOrders(userOrders);
+    } catch (error) {
+        Alert.alert("Erro", "Não foi possível carregar seus pedidos.");
+        setOrders([]);
+    } finally {
+        setLoading(false);
+    }
+  }, [user]);
+
+  useFocusEffect(
+    useCallback(() => {
+        loadOrders();
+        return () => {};
+    }, [loadOrders])
+  );
+
+  if (!user) {
+    return (
+      <View style={styles.emptyAuthContainer}>
+        <Feather name="log-in" size={60} color="#ccc" />
+        <Text style={styles.emptyTitle}>Acesso Restrito</Text>
+        <Text style={styles.emptySubtitle}>Você precisa estar logado para ver seu histórico de pedidos.</Text>
+        <TouchableOpacity style={styles.loginButton} onPress={() => navigation.navigate('Login' as any)}>
+            <Text style={styles.loginButtonText}>Fazer Login</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* --- CABEÇALHO (Igual ao da Home) --- */}
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTextSmall}>Entregar em</Text>
@@ -83,15 +137,16 @@ export default function OrdersScreen() {
         <View style={styles.headerIcons}>
           <TouchableOpacity onPress={() => navigation.navigate('Cart')}>
             <Feather name="shopping-cart" size={24} color="black" />
-            <View style={styles.cartBadge}>
-              <Text style={styles.cartBadgeText}>3</Text>
-            </View>
+            {cartItemCount > 0 && (
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeText}>{cartItemCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
           <Feather name="user" size={24} color="black" style={{ marginLeft: 15 }} />
         </View>
       </View>
 
-      {/* --- BARRA DE BUSCA (Igual ao da Home) --- */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
           <Feather name="search" size={20} color="gray" />
@@ -100,36 +155,20 @@ export default function OrdersScreen() {
       </View>
 
       <ScrollView style={styles.scroll}>
-        {/* <View style={styles.emptyState}>
-          <MaterialCommunityIcons name="receipt-text-outline" size={60} color="#ccc" />
-          <Text style={styles.emptyTitle}>Seus Pedidos</Text>
-          <Text style={styles.emptySubtitle}>Acompanhe o status dos seus pedidos</Text>
-        </View> */}
-        
-        <OrderCard
-          id="PED001"
-          pharmacy="Farmácia Popular"
-          status="Entregue"
-          date="Hoje, 14:30"
-          total="45.80"
-          items="Paracetamol 500mg, Vitamina C 1g"
-        />
-        <OrderCard
-          id="PED002"
-          pharmacy="Drogaria São Paulo"
-          status="A caminho"
-          date="Hoje, 16:45"
-          total="28.90"
-          items="Dipirona 500mg, Protetor solar"
-        />
-        <OrderCard
-          id="PED003"
-          pharmacy="Farmácia Pacheco"
-          status="Preparando"
-          date="Hoje, 17:10"
-          total="75.20"
-          items="Remédio X, Remédio Y"
-        />
+        {loading ? (
+            <ActivityIndicator size="large" color="#28a745" style={{ marginTop: 50 }} />
+        ) : orders.length === 0 ? (
+            <View style={styles.emptyState}>
+                <MaterialCommunityIcons name="receipt-text-outline" size={60} color="#ccc" />
+                <Text style={styles.emptyTitle}>Sem pedidos por aqui</Text>
+                <Text style={styles.emptySubtitle}>Seu histórico de pedidos aparecerá aqui após sua primeira compra.</Text>
+                <TouchableOpacity style={styles.emptyButton} onPress={() => navigation.navigate('Main', { screen: 'Início' } as any)}>
+                    <Text style={styles.emptyButtonText}>Começar a Comprar</Text>
+                </TouchableOpacity>
+            </View>
+        ) : (
+            orders.map(order => <OrderCard key={order.id} order={order} />)
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -142,6 +181,26 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flex: 1,
+  },
+  emptyAuthContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: 'white',
+  },
+  loginButton: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 8,
+    padding: 15,
+    alignItems: 'center',
+    width: '80%',
+    marginTop: 20,
+  },
+  loginButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   header: {
     flexDirection: 'row',
@@ -202,6 +261,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingTop: 100,
+    paddingHorizontal: 20,
+  },
+  emptyButton: {
+    backgroundColor: '#28a745',
+    borderRadius: 8,
+    padding: 15,
+    alignItems: 'center',
+    width: '100%',
+    marginTop: 20,
+  },
+  emptyButtonText: {
+      color: 'white',
+      fontWeight: 'bold',
   },
   emptyTitle: {
     fontSize: 20,
@@ -211,6 +283,7 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     color: 'gray',
     marginTop: 5,
+    textAlign: 'center',
   },
   orderCard: {
     backgroundColor: 'white',

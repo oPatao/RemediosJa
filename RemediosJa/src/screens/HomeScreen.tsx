@@ -4,15 +4,22 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, MaterialCommunityIcons, AntDesign, FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useCart } from '../../context/CartContext';
 
-// Tipagem para a navegação
 type RootStackParamList = {
   Home: undefined;
   Cart: undefined;
 };
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
-// --- DADOS MOCKADOS ---
+interface Product {
+    id: number; 
+    name: string; 
+    pharmacy: string; 
+    price: number; 
+    oldPrice?: number;
+}
+
 const promotions = [
     { id: '1', title: 'Frete Grátis', subtitle: 'Em pedidos acima de R$ 50', color: '#e0f3f5' },
     { id: '2', title: '20% OFF', subtitle: 'Em medicamentos genéricos', color: '#e3f2fd' },
@@ -25,10 +32,10 @@ const categories = [
     { id: '5', name: 'Higiene', icon: <FontAwesome5 name="soap" size={24} color="#28a745" /> },
     { id: '6', name: 'Equipamentos', icon: <MaterialCommunityIcons name="thermometer" size={24} color="#17a2b8" /> },
 ];
-const featuredProducts = [
-    { id: '1', name: 'Paracetamol 500mg', pharmacy: 'Farmácia Popular', price: '8.90', oldPrice: '12.90' },
-    { id: '2', name: 'Dipirona 500mg', pharmacy: 'Drogaria São Paulo', price: '6.50' },
-    { id: '3', name: 'Vitamina C 1g', pharmacy: 'Farmácia Pacheco', price: '15.90', oldPrice: '19.90' },
+const featuredProducts: Product[] = [
+    { id: 101, name: 'Paracetamol 500mg', pharmacy: 'Farmácia Popular', price: 8.90, oldPrice: 12.90 },
+    { id: 102, name: 'Dipirona 500mg', pharmacy: 'Drogaria São Paulo', price: 6.50 },
+    { id: 103, name: 'Vitamina C 1g', pharmacy: 'Farmácia Pacheco', price: 15.90, oldPrice: 19.90 },
 ];
 const nearbyPharmacies = [
     { id: '1', name: 'Farmácia Vida Que Segue', rating: 4.8, time: '15-25 min', distance: '0.5 km', delivery: 'Grátis' },
@@ -38,10 +45,33 @@ const nearbyPharmacies = [
 
 export default function HomeScreen() {
   const navigation = useNavigation<HomeScreenNavigationProp>();
+  const { addItem, cart } = useCart();
+
+  const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  const handleAddToCart = (prod: Product) => {
+    addItem({ id: prod.id, name: prod.name, pharmacy: prod.pharmacy, price: prod.price });
+  };
+
+  const ProductCard = ({ prod }: { prod: Product }) => (
+    <View key={prod.id} style={styles.productCard}>
+      <View style={styles.productImagePlaceholder} />
+      <View style={styles.productInfo}>
+        <Text style={styles.productName}>{prod.name}</Text>
+        <Text style={styles.productPharmacy}>{prod.pharmacy}</Text>
+        <View style={styles.priceContainer}>
+          <Text style={styles.productPrice}>R$ {prod.price.toFixed(2).replace('.', ',')}</Text>
+          {prod.oldPrice && <Text style={styles.productOldPrice}>R$ {prod.oldPrice.toFixed(2).replace('.', ',')}</Text>}
+        </View>
+      </View>
+      <TouchableOpacity style={styles.addButton} onPress={() => handleAddToCart(prod)}>
+        <Text style={styles.addButtonText}>+ Adicionar</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* --- CABEÇALHO --- */}
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTextSmall}>Entregar em</Text>
@@ -50,15 +80,16 @@ export default function HomeScreen() {
         <View style={styles.headerIcons}>
           <TouchableOpacity onPress={() => navigation.navigate('Cart')}>
             <Feather name="shopping-cart" size={24} color="black" />
-            <View style={styles.cartBadge}>
-              <Text style={styles.cartBadgeText}>3</Text>
-            </View>
+            {cartItemCount > 0 && (
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeText}>{cartItemCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
           <Feather name="user" size={24} color="black" style={{ marginLeft: 15 }} />
         </View>
       </View>
 
-      {/* --- BARRA DE BUSCA --- */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
           <Feather name="search" size={20} color="gray" />
@@ -67,7 +98,6 @@ export default function HomeScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* --- PROMOÇÕES --- */}
         <FlatList
           horizontal
           data={promotions}
@@ -85,7 +115,6 @@ export default function HomeScreen() {
           showsHorizontalScrollIndicator={false}
         />
 
-        {/* --- CATEGORIAS --- */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Categorias</Text>
           <View style={styles.categoriesContainer}>
@@ -98,31 +127,16 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* --- PRODUTOS EM DESTAQUE --- */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Produtos em destaque</Text>
           {featuredProducts.map(prod => (
-            <View key={prod.id} style={styles.productCard}>
-              <View style={styles.productImagePlaceholder} />
-              <View style={styles.productInfo}>
-                <Text style={styles.productName}>{prod.name}</Text>
-                <Text style={styles.productPharmacy}>{prod.pharmacy}</Text>
-                <View style={styles.priceContainer}>
-                  <Text style={styles.productPrice}>R$ {prod.price}</Text>
-                  {prod.oldPrice && <Text style={styles.productOldPrice}>R$ {prod.oldPrice}</Text>}
-                </View>
-              </View>
-              <TouchableOpacity style={styles.addButton}>
-                <Text style={styles.addButtonText}>+ Adicionar</Text>
-              </TouchableOpacity>
-            </View>
+            <ProductCard key={prod.id} prod={prod} />
           ))}
           <TouchableOpacity style={styles.seeMoreButton}>
             <Text style={styles.seeMoreButtonText}>Ver mais produtos</Text>
           </TouchableOpacity>
         </View>
 
-        {/* --- FARMÁCIAS PRÓXIMAS --- */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Farmácias próximas</Text>
@@ -149,7 +163,6 @@ export default function HomeScreen() {
   );
 }
 
-// --- ESTILOS ---
 const styles = StyleSheet.create({
     container: {
       flex: 1,

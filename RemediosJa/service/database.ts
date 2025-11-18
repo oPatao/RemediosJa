@@ -1,10 +1,31 @@
 import * as SQLite from 'expo-sqlite';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const db = SQLite.openDatabaseSync('drogarias.db');
 
+export interface CartItem {
+  id: number;
+  name: string;
+  pharmacy: string;
+  price: number;
+  quantity: number;
+}
+
+export type OrderStatus = 'preparando' | 'enviado' | 'entregue' | 'cancelado';
+
+export interface Order {
+  id: string;
+  userId: string; 
+  date: string; 
+  total: number;
+  status: OrderStatus; 
+  items: CartItem[]; 
+}
+
+const ORDERS_STORAGE_KEY = '@RemediosJa:orders';
+
 export const initDB = async () => {
   try {
-    // 1. Tabela de Usuários (já existente)
     await db.execAsync(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -16,7 +37,6 @@ export const initDB = async () => {
       );
     `);
 
-    // 2. Tabela de Produtos (NOVA)
     await db.execAsync(`
       CREATE TABLE IF NOT EXISTS products (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -52,7 +72,6 @@ export const initDB = async () => {
   }
 };
 
-// --- Funções de Usuário (Mantidas) ---
 export const getUser = async (email: string) => {
   try {
     return await db.getFirstAsync('SELECT * FROM users WHERE email = ?', [email]);
@@ -72,9 +91,6 @@ export const createUser = async (name: string, email: string) => {
   }
 };
 
-// --- Funções de Produtos (NOVAS) ---
-
-// Busca produtos com filtros opcionais
 export const searchProducts = async (query: string, category: string | null, maxPrice: number) => {
   try {
     let sql = 'SELECT * FROM products WHERE name LIKE ?';
@@ -97,3 +113,28 @@ export const searchProducts = async (query: string, category: string | null, max
     return [];
   }
 };
+
+export async function saveOrder(order: Omit<Order, 'id' | 'status' | 'date'>): Promise<Order> {
+  const allOrdersJson = await AsyncStorage.getItem(ORDERS_STORAGE_KEY);
+  const allOrders: Order[] = allOrdersJson ? JSON.parse(allOrdersJson) : [];
+
+  const newOrder: Order = {
+    ...order,
+    id: `ORDER-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+    status: 'preparando',
+    date: new Date().toISOString(),
+  };
+
+  allOrders.push(newOrder);
+  await AsyncStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(allOrders));
+  return newOrder;
+}
+
+export async function getOrdersByUserId(userId: string): Promise<Order[]> {
+  const allOrdersJson = await AsyncStorage.getItem(ORDERS_STORAGE_KEY);
+  const allOrders: Order[] = allOrdersJson ? JSON.parse(allOrdersJson) : [];
+
+  return allOrders
+    .filter(order => order.userId === userId)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); 
+}

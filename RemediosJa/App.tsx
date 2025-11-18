@@ -4,10 +4,9 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { AntDesign, Feather } from '@expo/vector-icons';
 
-// --- IMPORTANTE: Importe o AuthProvider ---
 import { AuthProvider } from './context/AuthContext';
+import { CartProvider } from './context/CartContext';
 
-// Importe suas telas
 import HomeScreen from './src/screens/HomeScreen';
 import CartScreen from './src/screens/CartScreen';
 import CheckoutScreen from './src/screens/CheckoutScreen';
@@ -16,13 +15,11 @@ import OrderConfirmedScreen from './src/screens/OrderConfirmedScreen';
 import SearchScreen from './src/screens/SearchScreen';
 import FavoritesScreen from './src/screens/FavoritesScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
-
-// --- NAVEGAÇÃO ---
+import LoginScreen from './src/screens/LoginScreen'; 
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
-// As telas da Tab Bar
 function MainTabNavigator() {
   return (
     <Tab.Navigator
@@ -61,35 +58,40 @@ function MainTabNavigator() {
   );
 }
 
-// O Navegador principal da aplicação
 export default function App() {
   return (
-    // ENVOLVA O APP COM O AUTHPROVIDER PARA INICIAR O BANCO
     <AuthProvider>
-      <NavigationContainer>
-        <Stack.Navigator>
-          <Stack.Screen
-            name="Main"
-            component={MainTabNavigator}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="Cart"
-            component={CartScreen}
-            options={{ title: 'Meu Carrinho' }}
-          />
-          <Stack.Screen
-            name="Checkout"
-            component={CheckoutScreen}
-            options={{ title: 'Finalizar pedido' }}
-          />
-          <Stack.Screen
-            name="OrderConfirmed"
-            component={OrderConfirmedScreen}
-            options={{ headerShown: false }}
-          />
-        </Stack.Navigator>
-      </NavigationContainer>
+      <CartProvider>
+        <NavigationContainer>
+          <Stack.Navigator>
+            <Stack.Screen
+              name="Main"
+              component={MainTabNavigator}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Cart"
+              component={CartScreen}
+              options={{ title: 'Meu Carrinho' }}
+            />
+            <Stack.Screen
+              name="Checkout"
+              component={CheckoutScreen}
+              options={{ title: 'Finalizar pedido' }}
+            />
+            <Stack.Screen
+              name="OrderConfirmed"
+              component={OrderConfirmedScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Login"
+              component={LoginScreen}
+              options={{ headerShown: false }}
+            />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </CartProvider>
     </AuthProvider>
   );
 }

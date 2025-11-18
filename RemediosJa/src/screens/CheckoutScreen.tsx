@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { FontAwesome5, MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
+import { saveOrder } from '../../service/database';
 
 type RootStackParamList = {
-  OrderConfirmed: undefined;
+  OrderConfirmed: { orderId: string };
+  Login: undefined;
 };
 type CheckoutScreenNavigationProp = StackNavigationProp<RootStackParamList, 'OrderConfirmed'>;
 
@@ -23,6 +27,43 @@ const PaymentOption = ({ icon, title, subtitle, selected, onPress }: any) => (
 export default function CheckoutScreen() {
   const [paymentMethod, setPaymentMethod] = useState('credit');
   const navigation = useNavigation<CheckoutScreenNavigationProp>();
+  const { cart, cartTotal, clearCart } = useCart();
+  const { user } = useAuth();
+
+  const handleFinalizeOrder = async () => {
+    if (!user) {
+      Alert.alert(
+        "Login Necessário",
+        "Você precisa estar logado para finalizar seu pedido.",
+        [
+          { text: "Cancelar", style: "cancel" },
+          { text: "Fazer Login", onPress: () => navigation.navigate('Login' as any) },
+        ]
+      );
+      return;
+    }
+    
+    if (cart.length === 0) {
+        Alert.alert("Carrinho Vazio", "Adicione itens ao carrinho antes de finalizar.");
+        return;
+    }
+
+    try {
+      const newOrder = await saveOrder({
+        userId: user.id.toString(),
+        total: cartTotal,
+        items: cart,
+      });
+
+      clearCart();
+
+      navigation.navigate('OrderConfirmed', { orderId: newOrder.id });
+
+    } catch (error) {
+      console.error("Erro ao finalizar pedido:", error);
+      Alert.alert("Erro", "Não foi possível finalizar o pedido. Tente novamente.");
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -98,7 +139,7 @@ export default function CheckoutScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.checkoutButton} onPress={() => navigation.navigate('OrderConfirmed')}>
+        <TouchableOpacity style={styles.checkoutButton} onPress={handleFinalizeOrder}>
           <Text style={styles.checkoutButtonText}>Finalizar pedido</Text>
         </TouchableOpacity>
       </View>
