@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, FlatList, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, TextInput, FlatList, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Feather, FontAwesome } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { searchProducts } from '../../service/database';
+import { searchProducts, toggleFavorite } from '../../service/database';
 import FilterBottomSheet from '../../components/FilterBottomSheet';
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 
 type RootStackParamList = {
   Cart: undefined;
@@ -23,11 +24,13 @@ interface Product {
     price: number;
     oldPrice?: number;
     image?: string;
+    isFavorite?: boolean;
 }
 
 export default function SearchScreen() {
   const navigation = useNavigation<SearchScreenNavigationProp>();
   const { addItem, cart } = useCart();
+  const { user } = useAuth();
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const [searchText, setSearchText] = useState('');
@@ -40,7 +43,7 @@ export default function SearchScreen() {
 
   const fetchProducts = async () => {
     setLoading(true);
-    const results = await searchProducts(searchText, filterCategory, filterMaxPrice);
+    const results = await searchProducts(searchText, filterCategory, filterMaxPrice, user?.id);
     
     const formattedResults = results.map((item: any) => ({
       ...item,
@@ -74,6 +77,16 @@ export default function SearchScreen() {
     });
   };
 
+  const handleToggleFavorite = async (item: Product) => {
+    if (!user) return Alert.alert("Login", "Faça login para favoritar.");
+    
+    await toggleFavorite(user.id, item.id);
+    
+    setProducts(current => current.map(p => 
+        p.id === item.id ? { ...p, isFavorite: !p.isFavorite } : p
+    ));
+  };
+
   const renderProduct = ({ item }: { item: Product }) => (
     <View style={styles.productCard}>
       <View style={styles.imagePlaceholder}>
@@ -94,9 +107,15 @@ export default function SearchScreen() {
             )}
         </View>
       </View>
-      <TouchableOpacity style={styles.addButton} onPress={() => handleAddToCart(item)}>
-        <Feather name="plus" size={20} color="white" />
-      </TouchableOpacity>
+      
+      <View style={styles.actionsColumn}>
+        <TouchableOpacity style={styles.favButton} onPress={() => handleToggleFavorite(item)}>
+            <FontAwesome name={item.isFavorite ? "heart" : "heart-o"} size={20} color={item.isFavorite ? "#dc3545" : "gray"} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.addButton} onPress={() => handleAddToCart(item)}>
+            <Feather name="plus" size={20} color="white" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -291,6 +310,14 @@ const styles = StyleSheet.create({
       fontSize: 12,
       color: 'gray',
       textDecorationLine: 'line-through'
+  },
+  actionsColumn: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    height: 80
+  },
+  favButton: {
+    padding: 5,
   },
   addButton: {
     backgroundColor: '#1a1a1a',

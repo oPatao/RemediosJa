@@ -11,6 +11,7 @@ export interface Product {
   oldPrice?: number;
   image?: string;
   pharmacy_name?: string; 
+  isFavorite?: boolean; 
 }
 
 export interface OrderItem {
@@ -86,6 +87,16 @@ export const initDB = async () => {
       );
     `);
 
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS favorites (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        product_id INTEGER NOT NULL,
+        FOREIGN KEY(user_id) REFERENCES users(id),
+        FOREIGN KEY(product_id) REFERENCES products(id)
+      );
+    `);
+
     const countResult: any = await db.getFirstAsync('SELECT COUNT(*) as count FROM products');
     if (countResult.count === 0) {
       
@@ -107,8 +118,6 @@ export const initDB = async () => {
         (?, 'Termômetro Digital', 'Equipamentos', 29.90, 35.00, ''),
         (?, 'Dorflex 36 cpr', 'Medicamentos', 18.90, 24.90, '');
       `, [pharmacy.id, pharmacy.id, pharmacy.id, pharmacy.id, pharmacy.id, pharmacy.id, pharmacy.id, pharmacy.id]);
-      
-      console.log('Produtos iniciais inseridos e vinculados!');
     }
 
     return true;
@@ -127,7 +136,7 @@ export const createUser = async (name: string, email: string, type: 'client' | '
   return { id: result.lastInsertRowId, name, email, type, pedidos: 0, economizou: 0 };
 };
 
-export const searchProducts = async (query: string, category: string | null, maxPrice: number) => {
+export const searchProducts = async (query: string, category: string | null, maxPrice: number, userId?: number) => {
   try {
     let sql = `
       SELECT p.*, u.name as pharmacy_name 
@@ -146,14 +155,20 @@ export const searchProducts = async (query: string, category: string | null, max
       params.push(maxPrice);
     }
 
-    return await db.getAllAsync(sql, params);
+    const products = await db.getAllAsync<Product>(sql, params);
+
+    if (userId) {
+        const favorites = await db.getAllAsync<{product_id: number}>('SELECT product_id FROM favorites WHERE user_id = ?', [userId]);
+        const favSet = new Set(favorites.map(f => f.product_id));
+        return products.map(p => ({ ...p, isFavorite: favSet.has(p.id) }));
+    }
+
+    return products;
   } catch (error) {
-    console.error('Search Error:', error);
     return [];
   }
 };
 
-// NOVA FUNÇÃO: Pegar produtos para a Home
 export const getFeaturedProducts = async () => {
   try {
     return await db.getAllAsync(`
@@ -191,7 +206,6 @@ export const deleteProduct = async (productId: number) => {
 
 export const saveOrderSQL = async (userId: number, cartItems: any[]) => {
   try {
-    // Busca uma farmácia padrão caso algum item venha sem ID (fallback de segurança)
     let defaultPharmacyId = 1;
     const pharmacyCheck = await db.getFirstAsync<{id: number}>('SELECT id FROM users WHERE type = ? LIMIT 1', ['pharmacy']);
     if (pharmacyCheck) defaultPharmacyId = pharmacyCheck.id;
@@ -199,7 +213,6 @@ export const saveOrderSQL = async (userId: number, cartItems: any[]) => {
     const itemsByPharmacy: any = {};
     
     cartItems.forEach(item => {
-        // Garante que temos um ID de farmácia válido
         const pId = item.pharmacy_id || defaultPharmacyId; 
         if (!itemsByPharmacy[pId]) itemsByPharmacy[pId] = [];
         itemsByPharmacy[pId].push(item);
@@ -229,7 +242,6 @@ export const saveOrderSQL = async (userId: number, cartItems: any[]) => {
     
     return orderIds[0]; 
   } catch (e) {
-    console.error("Erro ao salvar pedido SQL", e);
     throw e;
   }
 };
@@ -273,4 +285,26 @@ export const removeOrderItem = async (orderId: number, itemId: number, itemPrice
 
 export const updateOrderStatus = async (orderId: number, status: string) => {
   await db.runAsync('UPDATE orders SET status = ? WHERE id = ?', [status, orderId]);
+};
+
+
+export const toggleFavorite = async (userId: number, productId: number) => {
+    const exists = await db.getFirstAsync('SELECT id FROM favorites WHERE user_id = ? AND product_id = ?', [userId, productId]);
+    if (exists) {
+        await db.runAsync('DELETE FROM favorites WHERE user_id = ? AND product_id = ?', [userId, productId]);
+        return false; 
+    } else {
+        await db.runAsync('INSERT INTO favorites (user_id, product_id) VALUES (?, ?)', [userId, productId]);
+        return true;
+    }
+};
+
+export const getFavorites = async (userId: number) => {
+    return await db.getAllAsync<Product>(`
+        SELECT p.*, u.name as pharmacy_name 
+        FROM products p 
+        JOIN users u ON p.pharmacy_id = u.id
+        JOIN favorites f ON f.product_id = p.id
+        WHERE f.user_id = ?
+    `, [userId]);
 };
