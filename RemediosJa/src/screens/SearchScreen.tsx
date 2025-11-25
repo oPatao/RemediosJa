@@ -18,6 +18,7 @@ interface Product {
     name: string;
     category: string;
     pharmacy: string;
+    pharmacy_id?: number;
     pharmacy_name?: string;
     price: number;
     oldPrice?: number;
@@ -43,7 +44,8 @@ export default function SearchScreen() {
     
     const formattedResults = results.map((item: any) => ({
       ...item,
-      pharmacy: item.pharmacy_name || 'Farmácia Desconhecida'
+      pharmacy: item.pharmacy_name || 'Farmácia Desconhecida',
+      pharmacy_id: item.pharmacy_id
     }));
 
     setProducts(formattedResults);
@@ -67,7 +69,8 @@ export default function SearchScreen() {
       id: item.id, 
       name: item.name, 
       pharmacy: item.pharmacy, 
-      price: item.price 
+      price: item.price,
+      pharmacy_id: item.pharmacy_id
     });
   };
 

@@ -1,9 +1,10 @@
 import React, { createContext, useState, useContext, ReactNode, useMemo } from 'react';
 
-interface CartItem {
+export interface CartItem {
   id: number;
   name: string;
   pharmacy: string;
+  pharmacy_id?: number;
   price: number;
   quantity: number;
 }
@@ -11,7 +12,7 @@ interface CartItem {
 interface CartContextData {
   cart: CartItem[];
   cartTotal: number;
-  addItem: (product: { id: number; name: string; pharmacy: string; price: number; }) => void;
+  addItem: (product: { id: number; name: string; pharmacy: string; price: number; pharmacy_id?: number }) => void;
   removeItem: (id: number) => void;
   updateQuantity: (id: number, delta: 1 | -1) => void;
   clearCart: () => void;
@@ -23,7 +24,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const deliveryFee = 5.00;
 
-  const addItem = (product: { id: number; name: string; pharmacy: string; price: number; }) => {
+  const addItem = (product: { id: number; name: string; pharmacy: string; price: number; pharmacy_id?: number }) => {
     setCart(currentCart => {
       const existingItem = currentCart.find(item => item.id === product.id);
 
@@ -32,7 +33,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
         );
       } else {
-        return [...currentCart, { ...product, quantity: 1 }];
+        return [...currentCart, { ...product, quantity: 1, pharmacy_id: product.pharmacy_id }];
       }
     });
   };
