@@ -1,14 +1,16 @@
-import React from 'react';
-import { StyleSheet, Text, View, ScrollView, FlatList, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, Text, View, ScrollView, FlatList, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, MaterialCommunityIcons, AntDesign, FontAwesome5 } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useCart } from '../../context/CartContext';
+import { getFeaturedProducts } from '../../service/database';
 
 type RootStackParamList = {
   Home: undefined;
   Cart: undefined;
+  Buscar: undefined;
 };
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -16,8 +18,11 @@ interface Product {
     id: number; 
     name: string; 
     pharmacy: string; 
+    pharmacy_id?: number;
     price: number; 
     oldPrice?: number;
+    image?: string;
+    pharmacy_name?: string;
 }
 
 const promotions = [
@@ -32,30 +37,50 @@ const categories = [
     { id: '5', name: 'Higiene', icon: <FontAwesome5 name="soap" size={24} color="#28a745" /> },
     { id: '6', name: 'Equipamentos', icon: <MaterialCommunityIcons name="thermometer" size={24} color="#17a2b8" /> },
 ];
-const featuredProducts: Product[] = [
-    { id: 101, name: 'Paracetamol 500mg', pharmacy: 'Farmácia Popular', price: 8.90, oldPrice: 12.90 },
-    { id: 102, name: 'Dipirona 500mg', pharmacy: 'Drogaria São Paulo', price: 6.50 },
-    { id: 103, name: 'Vitamina C 1g', pharmacy: 'Farmácia Pacheco', price: 15.90, oldPrice: 19.90 },
-];
-const nearbyPharmacies = [
-    { id: '1', name: 'Farmácia Vida Que Segue', rating: 4.8, time: '15-25 min', distance: '0.5 km', delivery: 'Grátis' },
-    { id: '2', name: 'Drogaria RM', rating: 4.6, time: '20-30 min', distance: '1.2 km', delivery: 'R$ 4,99' },
-];
-
 
 export default function HomeScreen() {
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const { addItem, cart } = useCart();
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
+  const loadData = async () => {
+    const products: any = await getFeaturedProducts();
+    const formatted = products.map((p: any) => ({
+        ...p,
+        pharmacy: p.pharmacy_name || 'Farmácia'
+    }));
+    setFeaturedProducts(formatted);
+    setLoading(false);
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadData();
+    }, [])
+  );
+
   const handleAddToCart = (prod: Product) => {
-    addItem({ id: prod.id, name: prod.name, pharmacy: prod.pharmacy, price: prod.price });
+    addItem({ 
+        id: prod.id, 
+        name: prod.name, 
+        pharmacy: prod.pharmacy, 
+        price: prod.price,
+        pharmacy_id: prod.pharmacy_id // Importante passar isso para o pedido
+    } as any);
   };
 
   const ProductCard = ({ prod }: { prod: Product }) => (
     <View key={prod.id} style={styles.productCard}>
-      <View style={styles.productImagePlaceholder} />
+      <View style={styles.productImagePlaceholder}>
+         {prod.image ? (
+           <Image source={{ uri: prod.image }} style={styles.productImage} />
+         ) : (
+           <Feather name="image" size={24} color="#ccc" />
+         )}
+      </View>
       <View style={styles.productInfo}>
         <Text style={styles.productName}>{prod.name}</Text>
         <Text style={styles.productPharmacy}>{prod.pharmacy}</Text>
@@ -75,7 +100,7 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTextSmall}>Entregar em</Text>
-          <Text style={styles.headerTextLarge}>Esquina dos Fogos De Artificio, 136 ▼</Text>
+          <Text style={styles.headerTextLarge}>Esquina dos Fogos, 136 ▼</Text>
         </View>
         <View style={styles.headerIcons}>
           <TouchableOpacity onPress={() => navigation.navigate('Cart')}>
@@ -129,34 +154,22 @@ export default function HomeScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Produtos em destaque</Text>
-          {featuredProducts.map(prod => (
-            <ProductCard key={prod.id} prod={prod} />
-          ))}
-          <TouchableOpacity style={styles.seeMoreButton}>
+          {loading ? (
+             <ActivityIndicator size="small" color="#28a745" />
+          ) : (
+             featuredProducts.map(prod => (
+                <ProductCard key={prod.id} prod={prod} />
+             ))
+          )}
+          
+          <TouchableOpacity 
+            style={styles.seeMoreButton} 
+            onPress={() => navigation.navigate('Buscar')}
+          >
             <Text style={styles.seeMoreButtonText}>Ver mais produtos</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Farmácias próximas</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAllText}>Ver todas</Text>
-            </TouchableOpacity>
-          </View>
-          {nearbyPharmacies.map(pharm => (
-            <TouchableOpacity key={pharm.id} style={styles.pharmacyCard}>
-              <View style={styles.pharmacyIconPlaceholder} />
-              <View style={styles.pharmacyInfo}>
-                <Text style={styles.pharmacyName}>{pharm.name}</Text>
-                <Text style={styles.pharmacyDetails}>⭐ {pharm.rating}  🕒 {pharm.time}  🛵 {pharm.distance}</Text>
-              </View>
-              <View style={[styles.deliveryBadge, { backgroundColor: pharm.delivery === 'Grátis' ? '#28a745' : '#f0f0f0' }]}>
-                <Text style={[styles.deliveryText, { color: pharm.delivery === 'Grátis' ? '#fff' : '#555' }]}>{pharm.delivery}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
         <View style={{height: 20}} />
       </ScrollView>
     </SafeAreaView>
@@ -291,6 +304,13 @@ const styles = StyleSheet.create({
       backgroundColor: '#f0f0f0',
       borderRadius: 8,
       marginRight: 15,
+      overflow: 'hidden',
+      justifyContent: 'center',
+      alignItems: 'center'
+    },
+    productImage: {
+      width: '100%',
+      height: '100%',
     },
     productInfo: {
       flex: 1,
@@ -338,11 +358,6 @@ const styles = StyleSheet.create({
     seeMoreButtonText: {
       fontWeight: 'bold',
       color: '#28a745',
-    },
-    sectionHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
     },
     seeAllText: {
       color: '#28a745',

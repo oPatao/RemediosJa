@@ -5,10 +5,10 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
-import { saveOrder } from '../../service/database';
+import { saveOrderSQL } from '../../service/database';
 
 type RootStackParamList = {
-  OrderConfirmed: { orderId: string };
+  OrderConfirmed: { orderId: number };
   Login: undefined;
 };
 type CheckoutScreenNavigationProp = StackNavigationProp<RootStackParamList, 'OrderConfirmed'>;
@@ -27,7 +27,7 @@ const PaymentOption = ({ icon, title, subtitle, selected, onPress }: any) => (
 export default function CheckoutScreen() {
   const [paymentMethod, setPaymentMethod] = useState('credit');
   const navigation = useNavigation<CheckoutScreenNavigationProp>();
-  const { cart, cartTotal, clearCart } = useCart();
+  const { cart, clearCart } = useCart();
   const { user } = useAuth();
 
   const handleFinalizeOrder = async () => {
@@ -49,18 +49,13 @@ export default function CheckoutScreen() {
     }
 
     try {
-      const newOrder = await saveOrder({
-        userId: user.id.toString(),
-        total: cartTotal,
-        items: cart,
-      });
+      const orderId = await saveOrderSQL(user.id, cart);
 
       clearCart();
 
-      navigation.navigate('OrderConfirmed', { orderId: newOrder.id });
+      navigation.navigate('OrderConfirmed', { orderId });
 
     } catch (error) {
-      console.error("Erro ao finalizar pedido:", error);
       Alert.alert("Erro", "Não foi possível finalizar o pedido. Tente novamente.");
     }
   };

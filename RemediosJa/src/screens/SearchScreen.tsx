@@ -2,44 +2,58 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TextInput, FlatList, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { searchProducts } from '../../service/database';
 import FilterBottomSheet from '../../components/FilterBottomSheet';
+import { useCart } from '../../context/CartContext';
 
-// Define a interface do Produto para o TypeScript
+type RootStackParamList = {
+  Cart: undefined;
+};
+type SearchScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Cart'>;
+
 interface Product {
     id: number;
     name: string;
     category: string;
     pharmacy: string;
+    pharmacy_name?: string;
     price: number;
     oldPrice?: number;
+    image?: string;
 }
 
 export default function SearchScreen() {
+  const navigation = useNavigation<SearchScreenNavigationProp>();
+  const { addItem, cart } = useCart();
+  const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
   const [searchText, setSearchText] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   
-  // Estados do Filtro
   const [modalVisible, setModalVisible] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string | null>(null);
   const [filterMaxPrice, setFilterMaxPrice] = useState<number>(0);
 
-  // Função para buscar no banco
   const fetchProducts = async () => {
     setLoading(true);
     const results = await searchProducts(searchText, filterCategory, filterMaxPrice);
-    setProducts(results as Product[]);
+    
+    const formattedResults = results.map((item: any) => ({
+      ...item,
+      pharmacy: item.pharmacy_name || 'Farmácia Desconhecida'
+    }));
+
+    setProducts(formattedResults);
     setLoading(false);
   };
 
-  // Atualiza a busca sempre que o texto ou filtros mudarem
   useEffect(() => {
-    // Debounce simples para não buscar a cada letra instantaneamente
     const delayDebounceFn = setTimeout(() => {
       fetchProducts();
     }, 500);
-
     return () => clearTimeout(delayDebounceFn);
   }, [searchText, filterCategory, filterMaxPrice]);
 
@@ -48,24 +62,36 @@ export default function SearchScreen() {
       setFilterMaxPrice(price);
   };
 
+  const handleAddToCart = (item: Product) => {
+    addItem({ 
+      id: item.id, 
+      name: item.name, 
+      pharmacy: item.pharmacy, 
+      price: item.price 
+    });
+  };
+
   const renderProduct = ({ item }: { item: Product }) => (
     <View style={styles.productCard}>
       <View style={styles.imagePlaceholder}>
-         {/* Aqui você colocaria a imagem real se tivesse url no banco */}
-         <Feather name="image" size={24} color="#ccc" />
+         {item.image ? (
+           <Image source={{ uri: item.image }} style={styles.productImage} />
+         ) : (
+           <Feather name="image" size={24} color="#ccc" />
+         )}
       </View>
       <View style={styles.productInfo}>
         <Text style={styles.productName}>{item.name}</Text>
         <Text style={styles.productPharmacy}>{item.pharmacy}</Text>
         <Text style={styles.productCategory}>{item.category}</Text>
         <View style={styles.priceRow}>
-            <Text style={styles.productPrice}>R$ {item.price.toFixed(2)}</Text>
+            <Text style={styles.productPrice}>R$ {item.price.toFixed(2).replace('.', ',')}</Text>
             {item.oldPrice && (
-                <Text style={styles.productOldPrice}>R$ {item.oldPrice.toFixed(2)}</Text>
+                <Text style={styles.productOldPrice}>R$ {item.oldPrice.toFixed(2).replace('.', ',')}</Text>
             )}
         </View>
       </View>
-      <TouchableOpacity style={styles.addButton}>
+      <TouchableOpacity style={styles.addButton} onPress={() => handleAddToCart(item)}>
         <Feather name="plus" size={20} color="white" />
       </TouchableOpacity>
     </View>
@@ -73,8 +99,26 @@ export default function SearchScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header da Busca */}
+      
       <View style={styles.header}>
+        <View>
+          <Text style={styles.headerTextSmall}>Entregar em</Text>
+          <Text style={styles.headerTextLarge}>Esquina dos Fogos, 136 ▼</Text>
+        </View>
+        <View style={styles.headerIcons}>
+          <TouchableOpacity onPress={() => navigation.navigate('Cart')}>
+            <Feather name="shopping-cart" size={24} color="black" />
+            {cartItemCount > 0 && (
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeText}>{cartItemCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <Feather name="user" size={24} color="black" style={{ marginLeft: 15 }} />
+        </View>
+      </View>
+
+      <View style={styles.searchBarContainer}>
         <View style={styles.searchBar}>
           <Feather name="search" size={20} color="gray" />
           <TextInput
@@ -85,15 +129,10 @@ export default function SearchScreen() {
           />
         </View>
         <TouchableOpacity style={styles.filterButton} onPress={() => setModalVisible(true)}>
-            <Feather 
-              name="sliders" 
-              size={24} 
-              color={(filterCategory || filterMaxPrice > 0) ? "#28a745" : "black"} 
-            />
+            <Feather name="sliders" size={24} color={filterCategory || filterMaxPrice > 0 ? "#28a745" : "black"} />
         </TouchableOpacity>
       </View>
 
-      {/* Lista de Resultados */}
       {loading ? (
         <ActivityIndicator size="large" color="#28a745" style={{ marginTop: 20 }} />
       ) : (
@@ -111,7 +150,6 @@ export default function SearchScreen() {
         />
       )}
 
-      {/* Componente Bottom Sheet */}
       <FilterBottomSheet 
         visible={modalVisible} 
         onClose={() => setModalVisible(false)}
@@ -129,6 +167,42 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    backgroundColor: 'white',
+  },
+  headerTextSmall: {
+    color: 'gray',
+    fontSize: 12,
+  },
+  headerTextLarge: {
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  headerIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cartBadge: {
+    position: 'absolute',
+    top: -5,
+    right: 8,
+    backgroundColor: 'red',
+    borderRadius: 10,
+    width: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cartBadgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  searchBarContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 15,
@@ -170,7 +244,12 @@ const styles = StyleSheet.create({
       borderRadius: 8,
       justifyContent: 'center',
       alignItems: 'center',
-      marginRight: 15
+      marginRight: 15,
+      overflow: 'hidden'
+  },
+  productImage: {
+    width: '100%',
+    height: '100%',
   },
   productInfo: {
     flex: 1,
@@ -192,7 +271,7 @@ const styles = StyleSheet.create({
       paddingVertical: 2,
       borderRadius: 4,
       marginTop: 4,
-      overflow: 'hidden' // necessário para borderRadius em Text no Android
+      overflow: 'hidden'
   },
   priceRow: {
       flexDirection: 'row',
