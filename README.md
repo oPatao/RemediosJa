@@ -65,6 +65,12 @@ Para executar este projeto em sua máquina, siga os passos abaixo estritamente p
   **No Celular**: Baixe o app Expo Go na Play Store (Android) ou App Store (iOS) e escaneie o QR Code exibido no terminal.
   **No Emulador**: Pressione a no terminal para abrir no Android Emulator ou i para o iOS Simulator.
 
+## usuario e senha de teste
+```bash
+  Farmacia: usuario: FarmaciaTeste; email: farmacia@teste.com
+  cliente: usuario: Cliente; email: cliente@teste.com
+  ```
+
 🛠️ Tecnologias Utilizadas
     **React Native & Expo SDK 54**
     **Expo SQLite:** Para banco de dados local.
