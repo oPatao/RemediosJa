@@ -5,7 +5,7 @@
 
 # RemediosJa 💊
 
-Aplicativo mobile desenvolvido em React Native com Expo para simular um e-commerce de farmácia, incluindo funcionalidades de busca avançada, gestão de carrinho e histórico de pedidos persistente.
+Aplicativo mobile desenvolvido em React Native com Expo e Supabase para simular um e-commerce de farmácia, incluindo funcionalidades de busca avançada, gestão de carrinho e histórico de pedidos persistente.
 
 ## 📱 Funcionalidades Principais
 
@@ -73,7 +73,7 @@ Para executar este projeto em sua máquina, siga os passos abaixo estritamente p
 
 🛠️ Tecnologias Utilizadas
     **React Native & Expo SDK 54**
-    **Expo SQLite:** Para banco de dados local.
+    **Supabase:** Para banco de dados persistente na nuvem.
     **React Navigation:** Navegação em Stack e Tabs.
     **Context API:** Gerenciamento de estado global (Auth e Carrinho).
     **TypeScript:** Para tipagem estática e segurança do código.
